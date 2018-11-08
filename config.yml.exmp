@@ -1,0 +1,9 @@
+cloudstack:
+  endpoint: 'http://<cloud_stack_master>/client/api'
+  key: '<cloudstack_api_key>'
+  secret: '<cloud_stack_api_secret_key>'
+netbox:
+  url: 'http://<netbox>'  
+  private_key_file: '<file_with_rsa_key>'
+  token: '<netbox_api_token>'
+  ssl_verify: False 
