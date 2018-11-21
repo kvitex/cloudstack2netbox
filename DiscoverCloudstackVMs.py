@@ -14,14 +14,33 @@ def cs2netbox_vm_status(cs_state):
     status_dict = {'Running': 1}
     return status_dict.get(cs_state,0)
 
+def netbox_update_vm(cs_vm, nb_update_vm):
+    nb_update_vm.name = cs_vm['name']
+    nb_update_vm.memory = int(cs_vm['memory'])
+    nb_update_vm.vcpus = int(cs_vm['cpunumber'])
+    nb_update_vm.disk = int(cs_vm['diskspace'] // (1024*1024*1024))
+    nb_update_vm.status = cs2netbox_vm_status(cs_vm['state'])
+    nb_update_vm.custom_fields = {'vmid': cs_vm['id'],
+                                    'account': cs_vm['account'],
+                                    'hostname': cs_vm.get('hostname', None),
+                                    'templatename': cs_vm['templatename'],
+                                    'hypervisor': cs_vm['hypervisor'],
+                                    'created': cs_vm['created'].replace('T', ' ')[:10]}
+    update_result = None
+    try:
+        update_result = nb_update_vm.save()
+    except pynetbox.RequestError as Error:
+        update_result = None
+    return update_result
+
 
 if __name__ == "__main__":
     config_file_name = 'config.yml'
-    cs_domain_id = '45c086dc-4beb-11e5-a929-de020e22981e'
-    cluster_name = 'CloudStack'
-    cluster_id = 1
-    vm_role_name = 'Common Purpose VM'
-    vm_role_id =  4
+    # cs_domain_id = '45c086dc-4beb-11e5-a929-de020e22981e'
+    # cluster_name = 'CloudStack'
+    # cluster_id = 1
+    # vm_role_name = 'Common Purpose VM'
+    # vm_role_id =  4
     try:
         with open(config_file_name) as config_file:
             cfg = yaml.load(config_file.read())
@@ -52,13 +71,22 @@ if __name__ == "__main__":
     except Exception as Error:
         print('Cloudstack: ', Error)
         exit(-1)
-
+    try:
+        cs_domain_id = cfg['cs_domain_id']
+        cluster_name = cfg['cluster_name']
+        cluster_id = cfg['cluster_id']
+        vm_role_id = cfg['vm_role_id']
+    except KeyError as Error:
+        print('Missing configuration')
+        print(Error)
+        exit(-1)
     netbox_vms = nb.virtualization.virtual_machines.filter(cluster_name=cluster_name)
 # Getting platforms from netbox and making dictionary with slugs as a key
     platforms_dict = dict(map(lambda nb_pl: (nb_pl.slug, nb_pl.id), nb.dcim.platforms.all()))
 # Getting diskofferings from Cloudstack and making dictionary with id and space amount
     # do_dict = dict(map(lambda cs_do: (cs_do['id'], cs_do['disksize']), dvb_cs.listDiskOfferings()['diskoffering']))
     cs_vms = dvb_cs.listVirtualMachines(domainid=cs_domain_id)['virtualmachine']
+    cs_volumes = dvb_cs.listVolumes(domainid=cs_domain_id)['volume']
 # Checking if VM in Netbox is exist in CloudStack. If not, then deleting VM in Netbox
     netbox_vm_deleted = False
     for netbox_vm in netbox_vms:
@@ -77,15 +105,25 @@ if __name__ == "__main__":
                 netbox_vm_deleted = True
     if netbox_vm_deleted:
         netbox_vms = nb.virtualization.virtual_machines.filter(cluster_name=cluster_name)
-    netbox_vmid_set = set()
 # Creating a set of netbox VM IDs for further check if VM from Cloudstack already exists in netbox
-    for netbox_vm in netbox_vms:
-        netbox_vmid_set.add(netbox_vm.custom_fields['vmid'])
+    netbox_vmid_dict = dict(tuple(map(lambda netbox_vm: (netbox_vm.custom_fields['vmid'], netbox_vm.id), netbox_vms)))
     vms_added = 0
     for cs_vm in cs_vms:
-        if cs_vm['id'] in netbox_vmid_set:
-            print('{} Found in netbox virtual machine name={} id={}'.
-                  format(ctime(), cs_vm['name'], cs_vm['id']))
+        cs_vm['diskspace'] = sum(list(map(lambda cs_volume: cs_volume['size']
+                                          if cs_volume.get('virtualmachineid') == cs_vm['id'] else 0, cs_volumes)))
+        if cs_vm['id'] in netbox_vmid_dict.keys():
+            try:
+                nb_update_vm = nb.virtualization.virtual_machines.get(netbox_vmid_dict[cs_vm['id']])
+            except:
+                print('{} Netbox error while getting VM netbox id={}'.format(ctime(), cs_vm['id']))
+            finally:
+                vm_update_result = netbox_update_vm(cs_vm, nb_update_vm)
+                if vm_update_result == True:
+                    print('{} Updated VM name={} id={}'.format(ctime(), cs_vm['name'], cs_vm['id']))
+                elif vm_update_result == False:
+                    print('{} Nothing to update VM name={} id={}'.format(ctime(), cs_vm['name'], cs_vm['id']))
+                else:
+                    print('{} Netbox error while updating name={} id={}'.format(ctime(), cs_vm['name'], cs_vm['id']))
         else:
             print('{} Creating in netbox virtual machine name={} id={}'.
                   format(ctime(), cs_vm['name'], cs_vm['id']))
@@ -95,6 +133,7 @@ if __name__ == "__main__":
                           'platform': platforms_dict[cs_vm['guestosid']],
                           'vcpus': cs_vm['cpunumber'],
                           'memory': cs_vm['memory'],
+                          'disk': cs_vm['diskspace'] // (1024*1024*1024),
                           'status': cs2netbox_vm_status(cs_vm['state']),
                           'custom_fields': {'vmid': cs_vm['id'],
                                             'account': cs_vm['account'],

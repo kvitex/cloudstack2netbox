@@ -1,3 +1,7 @@
+cs_domain_id: '<>'  # Domain id in CloudStack
+cluster_name: '<>' # Cluster name in Netbox
+cluster_id: 1              # Cluster id in Netbox
+vm_role_id: 4              # Virtual Machine Role id in Netbox
 cloudstack:
   endpoint: 'http://<cloud_stack_master>/client/api'
   key: '<cloudstack_api_key>'
