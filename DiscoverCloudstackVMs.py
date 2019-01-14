@@ -80,7 +80,7 @@ if __name__ == "__main__":
         print('Missing configuration')
         print(Error)
         exit(-1)
-    netbox_vms = nb.virtualization.virtual_machines.filter(cluster_name=cluster_name)
+    netbox_vms = nb.virtualization.virtual_machines.filter(cluster_id=cluster_id)
 # Getting platforms from netbox and making dictionary with slugs as a key
     platforms_dict = dict(map(lambda nb_pl: (nb_pl.slug, nb_pl.id), nb.dcim.platforms.all()))
 # Getting diskofferings from Cloudstack and making dictionary with id and space amount
