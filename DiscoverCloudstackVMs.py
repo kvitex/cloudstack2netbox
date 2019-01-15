@@ -104,7 +104,7 @@ if __name__ == "__main__":
             else:
                 netbox_vm_deleted = True
     if netbox_vm_deleted:
-        netbox_vms = nb.virtualization.virtual_machines.filter(cluster_name=cluster_name)
+        netbox_vms = nb.virtualization.virtual_machines.filter(cluster_id=cluster_id)
 # Creating a set of netbox VM IDs for further check if VM from Cloudstack already exists in netbox
     netbox_vmid_dict = dict(tuple(map(lambda netbox_vm: (netbox_vm.custom_fields['vmid'], netbox_vm.id), netbox_vms)))
     vms_added = 0
