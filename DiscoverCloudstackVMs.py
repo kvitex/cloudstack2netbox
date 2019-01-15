@@ -156,7 +156,7 @@ if __name__ == "__main__":
                 no_primary_ip = True
                 for i in range(len(cs_vm['nic'])):
                     this_nic = cs_vm['nic'][i]
-                    nb_int_args = {'virtual_machine': nb_new_vm['id'],
+                    nb_int_args = {'virtual_machine': nb_new_vm.id,
                                    'name': 'eth{}'.format(i),
                                    'mac_address': this_nic['macaddress'],
                                    'form_factor': 0
@@ -176,10 +176,10 @@ if __name__ == "__main__":
                             nb_new_ip = nb.ipam.ip_addresses.create(**nb_ip_args)
                             if nb_new_ip:
                                 #nb_update_interface = nb.virtualization.interfaces.get(nb_new_int['id'])
-                                nb_update_ip = nb.ipam.ip_addresses.get(nb_new_ip['id'])
-                                nb_update_ip.interface = nb_new_int['id']
+                                nb_update_ip = nb.ipam.ip_addresses.get(nb_new_ip.id)
+                                nb_update_ip.interface = nb_new_int.id
                                 if nb_update_ip.save() and no_primary_ip:
-                                    nb_update_vm = nb.virtualization.virtual_machines.get(nb_new_vm['id'])
+                                    nb_update_vm = nb.virtualization.virtual_machines.get(nb_new_vm.id)
                                     nb_update_vm.primary_ip4 = nb_update_ip
                                     nb_update_vm.primary_ip = nb_update_ip
                                     nb_update_vm.save()
